@@ -6,13 +6,17 @@
 
 #include IMPL
 
-#ifdef OPT
+#ifdef HASH
 #define OUT_FILE "opt.txt"
 #else
 #define OUT_FILE "orig.txt"
 #endif
 
 #define DICT_FILE "./dictionary/words.txt"
+
+#if defined(HASH)
+#define TABLE_SIZE 20000
+#endif
 
 static double diff_in_second(struct timespec t1, struct timespec t2)
 {
@@ -34,7 +38,9 @@ int main(int argc, char *argv[])
     char line[MAX_LAST_NAME_SIZE];
     struct timespec start, end;
     double cpu_time1, cpu_time2;
-
+#if defined(HASH)
+    unsigned int hash_index=0;
+#endif
     /* check file opening */
     fp = fopen(DICT_FILE, "r");
     if (fp == NULL) {
@@ -43,11 +49,17 @@ int main(int argc, char *argv[])
     }
 
     /* build the entry */
+    printf("size of entry : %lu bytes\n", sizeof(entry));
+
+#if defined(HASH)
+    entry *pHead, e[TABLE_SIZE];
+    pHead = e;
+#else
     entry *pHead, *e;
     pHead = (entry *) malloc(sizeof(entry));
-    printf("size of entry : %lu bytes\n", sizeof(entry));
     e = pHead;
-    e->pNext = NULL;
+    e->pNext=NULL;
+#endif
 
 #if defined(__GNUC__)
     __builtin___clear_cache((char *) pHead, (char *) pHead + sizeof(entry));
@@ -58,7 +70,12 @@ int main(int argc, char *argv[])
             i++;
         line[i - 1] = '\0';
         i = 0;
+#if defined(HASH)
+        hash_index = hashfunction(line)%TABLE_SIZE;
+        append(line, &e[hash_index]);
+#else
         e = append(line, e);
+#endif
     }
     clock_gettime(CLOCK_REALTIME, &end);
     cpu_time1 = diff_in_second(start, end);
@@ -66,11 +83,20 @@ int main(int argc, char *argv[])
     /* close file as soon as possible */
     fclose(fp);
 
+#if defined(HASH)
+
+#else
     e = pHead;
+#endif
 
     /* the givn last name to find */
     char input[MAX_LAST_NAME_SIZE] = "zyxel";
+
+#if defined(HASH)
+
+#else
     e = pHead;
+#endif
 
     assert(findName(input, e) &&
            "Did you implement findName() in " IMPL "?");
@@ -92,8 +118,12 @@ int main(int argc, char *argv[])
     printf("execution time of append() : %lf sec\n", cpu_time1);
     printf("execution time of findName() : %lf sec\n", cpu_time2);
 
+#if defined(HASH)
+
+#else
     if (pHead->pNext) free(pHead->pNext);
     free(pHead);
+#endif
 
     return 0;
 }
