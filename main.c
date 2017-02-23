@@ -15,7 +15,7 @@
 #define DICT_FILE "./dictionary/words.txt"
 
 #if defined(HASH)
-#define TABLE_SIZE 20000
+#define TABLE_SIZE 30000
 #endif
 
 static double diff_in_second(struct timespec t1, struct timespec t2)
@@ -40,6 +40,9 @@ int main(int argc, char *argv[])
     double cpu_time1, cpu_time2;
 #if defined(HASH)
     unsigned int hash_index=0;
+#if defined(DISTRIBUTION)
+    unsigned int hash_layer[TABLE_SIZE]= {};
+#endif
 #endif
     /* check file opening */
     fp = fopen(DICT_FILE, "r");
@@ -54,6 +57,11 @@ int main(int argc, char *argv[])
 #if defined(HASH)
     entry *pHead, e[TABLE_SIZE];
     pHead = e;
+    for (i=0; i<TABLE_SIZE; i++) {
+        e[i].pNext=NULL;
+        e[i].pDetail=NULL;
+    }
+    i=0;
 #else
     entry *pHead, *e;
     pHead = (entry *) malloc(sizeof(entry));
@@ -73,6 +81,9 @@ int main(int argc, char *argv[])
 #if defined(HASH)
         hash_index = hashfunction(line)%TABLE_SIZE;
         append(line, &e[hash_index]);
+#if defined(DISTRIBUTION)
+        hash_layer[hash_index]++;
+#endif
 #else
         e = append(line, e);
 #endif
@@ -90,7 +101,7 @@ int main(int argc, char *argv[])
 #endif
 
     /* the givn last name to find */
-    char input[MAX_LAST_NAME_SIZE] = "zyxel";
+    char input[MAX_LAST_NAME_SIZE] = "adansonia"; //zyxel
 
 #if defined(HASH)
 
@@ -100,7 +111,7 @@ int main(int argc, char *argv[])
 
     assert(findName(input, e) &&
            "Did you implement findName() in " IMPL "?");
-    assert(0 == strcmp(findName(input, e)->lastName, "zyxel"));
+    assert(0 == strcmp(findName(input, e)->lastName, "adansonia"));
 
 #if defined(__GNUC__)
     __builtin___clear_cache((char *) pHead, (char *) pHead + sizeof(entry));
@@ -117,6 +128,14 @@ int main(int argc, char *argv[])
 
     printf("execution time of append() : %lf sec\n", cpu_time1);
     printf("execution time of findName() : %lf sec\n", cpu_time2);
+
+#if defined(DISTRIBUTION)
+    FILE *distribution = fopen("eachDistribute.txt","a");
+    for (i=0; i<TABLE_SIZE; i++) {
+        fprintf(distribution,"%d %d\n", i, hash_layer[i]);
+    }
+    fclose(distribution);
+#endif
 
 #if defined(HASH)
 

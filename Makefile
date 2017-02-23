@@ -22,7 +22,7 @@ phonebook_orig: $(SRCS_common) phonebook_orig.c phonebook_orig.h
 
 phonebook_opt: $(SRCS_common) phonebook_opt.c phonebook_opt.h
 	$(CC) $(CFLAGS_common) $(CFLAGS_opt) \
-		-DIMPL="\"$@.h\"" -DHASH -o $@ \
+		-DIMPL="\"$@.h\"" -DHASH -DBKDR -DDISTRIBUTION -o $@ \
 		$(SRCS_common) $@.c
 
 run: $(EXEC)
@@ -42,6 +42,9 @@ output.txt: cache-test calculate
 
 plot: output.txt
 	gnuplot scripts/runtime.gp
+
+distribution: eachDistribute.txt
+	gnuplot scripts/distribution.gp
 
 calculate: calculate.c
 	$(CC) $(CFLAGS_common) $^ -o $@
