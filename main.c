@@ -6,16 +6,16 @@
 
 #include IMPL
 
-#ifdef HASH
+#ifdef OPT
 #define OUT_FILE "opt.txt"
 #else
 #define OUT_FILE "orig.txt"
 #endif
 
-#define DICT_FILE "./dictionary/words.txt"
+#define DICT_FILE "./dictionary/all-names.txt"
 
-#if defined(HASH)
-#define TABLE_SIZE 30000
+#if defined(HASH)||defined(SOUNDEX)
+#define TABLE_SIZE 3000
 #endif
 
 static double diff_in_second(struct timespec t1, struct timespec t2)
@@ -39,10 +39,13 @@ int main(int argc, char *argv[])
     struct timespec start, end;
     double cpu_time1, cpu_time2;
 #if defined(HASH)
-    unsigned int hash_index=0;
+    unsigned int hash_index = 0;
+#elif defined(SOUNDEX)
+    int hash_index = 0;
+    int hashtag = 0;
+#endif
 #if defined(DISTRIBUTION)
     unsigned int hash_layer[TABLE_SIZE]= {};
-#endif
 #endif
     /* check file opening */
     fp = fopen(DICT_FILE, "r");
@@ -54,7 +57,7 @@ int main(int argc, char *argv[])
     /* build the entry */
     printf("size of entry : %lu bytes\n", sizeof(entry));
 
-#if defined(HASH)
+#if defined(HASH)||defined(SOUNDEX)
     entry *pHead, e[TABLE_SIZE];
     pHead = e;
     for (i=0; i<TABLE_SIZE; i++) {
@@ -81,11 +84,15 @@ int main(int argc, char *argv[])
 #if defined(HASH)
         hash_index = hashfunction(line)%TABLE_SIZE;
         append(line, &e[hash_index]);
-#if defined(DISTRIBUTION)
-        hash_layer[hash_index]++;
-#endif
+#elif defined(SOUNDEX)
+        hashtag = soundex(line);
+        hash_index = hashtag%TABLE_SIZE;
+        append(line, &e[hash_index], hashtag);
 #else
         e = append(line, e);
+#endif
+#if defined(DISTRIBUTION)
+        hash_layer[hash_index]++;
 #endif
     }
     clock_gettime(CLOCK_REALTIME, &end);
@@ -94,24 +101,27 @@ int main(int argc, char *argv[])
     /* close file as soon as possible */
     fclose(fp);
 
-#if defined(HASH)
+#if defined(HASH)||defined(SOUNDEX)
 
 #else
     e = pHead;
 #endif
 
     /* the givn last name to find */
-    char input[MAX_LAST_NAME_SIZE] = "adansonia"; //zyxel
+    char input[MAX_LAST_NAME_SIZE] = "abby"; //zyxel
 
-#if defined(HASH)
+#if defined(HASH)||defined(SOUNDEX)
 
 #else
     e = pHead;
 #endif
 
+#if defined(SOUNDEX)
+#else
     assert(findName(input, e) &&
            "Did you implement findName() in " IMPL "?");
-    assert(0 == strcmp(findName(input, e)->lastName, "adansonia"));
+    assert(0 == strcmp(findName(input, e)->lastName, "abby"));
+#endif
 
 #if defined(__GNUC__)
     __builtin___clear_cache((char *) pHead, (char *) pHead + sizeof(entry));
@@ -129,6 +139,18 @@ int main(int argc, char *argv[])
     printf("execution time of append() : %lf sec\n", cpu_time1);
     printf("execution time of findName() : %lf sec\n", cpu_time2);
 
+    /* print similar answer */
+#if defined(SIMILAR)
+    entry *similar = findName(input, e);
+    entry *tmp = similar;
+    printf("Similar answer:\n");
+    while(tmp!=NULL) {
+        printf("%s, %d\n",tmp->lastName,tmp->hashtag);
+        tmp = tmp->pNext;
+    }
+#endif
+
+
 #if defined(DISTRIBUTION)
     FILE *distribution = fopen("eachDistribute.txt","a");
     for (i=0; i<TABLE_SIZE; i++) {
@@ -138,7 +160,9 @@ int main(int argc, char *argv[])
 #endif
 
 #if defined(HASH)
-
+#elif defined(SIMILAR)
+    if(similar->pNext) free(similar->pNext);
+    free(similar);
 #else
     if (pHead->pNext) free(pHead->pNext);
     free(pHead);
